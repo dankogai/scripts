@@ -1,0 +1,39 @@
+#!/usr/bin/perl -w
+use strict;
+use warnings;
+ 
+my @processes;
+my @attrs = qw/PID PPID USER ETIME PCPU PMEM COMMAND/;
+my $format = "%-7s %5d %5d %-8s %11s %4s %4s %s\n";
+my $cmd = "/bin/ps -Aeo " . (join ',', map { lc } @attrs) . " |";
+open my $FH, $cmd or die "ERROR: $!";
+my $header = <$FH>;
+while (my $line = <$FH>){
+    chomp $line;
+    $line =~ s/^\s+//;
+    my @F = split /\s+/, $line, scalar @attrs;
+    my $p;
+# die unless @attrs == @F;
+    $p->{$attrs[$_]} = $F[$_] for 0 ... $#attrs;
+    push @processes, $p;
+}
+close $FH or die "ERROR: $!";
+ 
+print STDERR "Tree    " . $header;
+tree(0, 1, \@processes);
+ 
+sub printLine {
+    my ($p, $I) = @_;
+    printf $format, "+" x $I, map { $p->{$_} } @attrs;
+}
+ 
+sub tree{
+    my ($PPID, $I, $processes) = @_;
+    for my $process (@{$processes}){
+        if ($process->{"PPID"} == $PPID){
+            printLine($process, $I);
+            tree($process->{"PID"}, $I+1, $processes);
+        }
+    }
+}
+
