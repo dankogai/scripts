@@ -1,0 +1,7 @@
+#!/usr/bin/perl
+# perl -MMIME::Base64 -0777 -ne 'print encode_base64($_)' < file
+use MIME::Base64 qw(encode_base64);
+
+local ($/) = undef; # slurp
+print encode_base64(<STDIN>);
+
