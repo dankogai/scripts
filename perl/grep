@@ -1,0 +1,128 @@
+#!/usr/bin/perl
+
+# 
+# on POSIX grep evironment, we cannot use -A,-B or --color options
+# this script is enable to do that.
+#
+use strict;
+use warnings;
+use Getopt::Long;
+
+sub usage {
+print <<USAGE;
+grep [ -n ] [ -a <N> ] [ -b <N> ] [ -c <color> ] { -e <RegExp> [ ... ] | <RegExp> } [ <FILE> ... ]
+
+ -n
+        Print Line Number
+ -a NUM, --after NUM
+        Print NUM lines of tailing context after matching lines.
+ -b NUM, --before NUM
+        Print NUM lines of leading context before matching lines.
+ -c COLOR, --color COLOR
+        Surround the macting string with the specifies color.
+        COLOR: black, red, green, yellow, blue, magenta, cyan, white
+ -e REGEXP
+        Pattern list specifies one or more search pattern.
+        The pattern is interpreted as a Perl regular expression.
+
+
+USAGE
+exit($_[0]);
+}
+
+my $after = 0;
+my $before = 0;
+my $color;
+my $opt_number = 0;
+my $opt_help = 0;
+my @regExps;
+my %colorAttr = (
+  'clear'      => 0,
+  'black'      => 30,   'on_black'   => 40, 
+  'red'        => 31,   'on_red'     => 41, 
+  'green'      => 32,   'on_green'   => 42, 
+  'yellow'     => 33,   'on_yellow'  => 43, 
+  'blue'       => 34,   'on_blue'    => 44, 
+  'magenta'    => 35,   'on_magenta' => 45, 
+  'cyan'       => 36,   'on_cyan'    => 46, 
+  'white'      => 37,   'on_white'   => 47
+);
+
+GetOptions(
+  'after=i'  => \$after,
+  'before=i' => \$before,
+  'color=s'  => \$color,
+  'number'   => \$opt_number,
+  'exp=s'    => \@regExps,,,,
+  'help'     => \$opt_help
+);
+
+if ($opt_help) {
+	&usage(0);
+}
+
+unless ( ! @regExps && push(@regExps,shift(@ARGV)) ) {
+  &usage(1);
+}
+
+if ( @ARGV ) {
+  foreach my $file (@ARGV) {
+    if (-r $file) {
+      open(IN,$file) or die "$!\n";
+      &grepFromStream(*IN);
+      close(IN);
+    } else {
+      print STDERR "\`$file' is not readable or exists.\n";
+    }
+  }
+} else {
+  &grepFromStream(*STDIN);
+}
+
+sub grepFromStream {
+  my $fh = shift;
+  my $lineNum = 0;
+  my $aNum = 0;
+  my ($LINE, @bufLine);
+  while($LINE = <$fh>){
+    $lineNum++;
+    if ($#bufLine>=$before) {
+      shift(@bufLine);
+    }
+    if ( grep($LINE=~/$_/,@regExps) ) {
+      $aNum = $after;
+      while ($bufLine[0]) {
+        if ($bufLine[0]{'num'} + $after > $lineNum) {
+          &printMsg($bufLine[0]{'line'},$bufLine[0]{'num'});
+        }
+        shift(@bufLine);
+      }
+      &printMsg(&colorNize($LINE),$lineNum);
+      next;
+    } elsif ($aNum > 0) {
+      &printMsg($LINE,$lineNum);
+      $aNum--;
+    } else {
+      push(@bufLine,{'line'=>$LINE, 'num'=>$lineNum});
+    }
+  }
+}
+
+sub printMsg {
+  $opt_number ? printf("%3d: %s",$_[1],$_[0]) : print $_[0];
+}
+
+sub colorNize {
+  my $LINE = $_[0];
+  if ($color && $colorAttr{$color}){
+    foreach my $reg (@regExps) {
+      $LINE =~ s/$reg/\e[$colorAttr{$color}m$&\e[$colorAttr{'clear'}m/g;
+    }
+    return $LINE;
+  } else {
+    return $LINE;
+  }
+}
+
+exit(0);
+
