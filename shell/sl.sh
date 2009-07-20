@@ -118,17 +118,6 @@ sl_wheel(){
     eval substr $start $length \""\$D51WHL_$3_$i"\"
   done
 }
-sl_coal(){
-  local length=$(( COLUMNS - $1 ))
-  (( length < 0 )) && return
-  local x=$1
-  local start=0
-  (( x < 0 )) && start=$(( - x )) && x=0
-  for (( i=0; i<10; i++ ));do
-    cursor $x $(( $2 + i ))
-    substr $start $length "${COAL[$i]}"
-  done
-}
 
 eval `resize`
 new_screen
