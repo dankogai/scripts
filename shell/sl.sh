@@ -87,50 +87,40 @@ substr(){
   str="$*"
   echo "${str:$start:$length}"
 }
-sl_steam(){
-  local x=$1
-  local start=0
-  (( x < 0 )) && start=$(( 0 - x )) && x=0
-  for (( i=0; i<6; i++ ));do
-    cursor $x $(( $2 + i ))
-    eval substr $start $(( COLUMNS - $1 )) \""\$STEAM_$3_$i"\"
-  done
-}
-sl_body() {
+show_sl() {
   local length=$(( COLUMNS - $1 ))
   (( length < 0 )) && return
   local x=$1
+  local y=$2
   local start=0
-  (( x < 0 )) && start=$(( - x )) && x=0
-  for (( i=0; i<7; i++ ));do
-    cursor $x $(( $2 + i ))
+  local length=$(( COLUMNS - $1 ))
+  local p1=$(( $3 % 2 ))
+  local p2=$(( $3 % 6 ))
+  (( x < 0 )) && start=$(( - x )) x=0
+  for (( i=0; i < STEAM_HEIGHT; i++ ));do
+    cursor $x $(( y++ ))
+    eval substr $start $length \""\$STEAM_${p1}_$i"\"
+  done
+  for (( i=0; i < D51STR_HEIGHT; i++ ));do
+    cursor $x $(( y++ ))
     substr $start $length "${D51STR[$i]}"
   done
-}
-sl_wheel(){
-  local length=$(( COLUMNS - $1 ))
-  (( length < 0 )) && return
-  local x=$1
-  local start=0
-  (( x < 0 )) && start=$(( - x )) && x=0
-  for (( i=0; i<3; i++ ));do
-    cursor $x $(( $2 + i ))
-    eval substr $start $length \""\$D51WHL_$3_$i"\"
+  for (( i=0; i < D51WHL_HEIGHT; i++ ));do
+    cursor $x $(( y++ ))
+    eval substr $start $length \""\$D51WHL_${p2}_$i"\"
   done
 }
 
 eval `resize`
 new_screen
 clr
-h=$(( (LINES - 16) / 2 ))
+h=$(( (LINES - STEAM_HEIGHT - D51STR_HEIGHT - D51WHL_HEIGHT) / 2 ))
 c=0;
 while (( c < COLUMNS + SL_LENGTH )); do
   x=$(( COLUMNS - c ))
-  sl_steam $x $h $(( c % 2 ))
-  sl_body $x $(( h + STEAM_HEIGHT ))
-  sl_wheel $x $(( h + STEAM_HEIGHT + D51STR_HEIGHT )) $(( c % 6 ))
+  show_sl $x $h $c
   for (( i=0; i<500; i++));do
-    echo "OK" >/dev/null
+    echo "" >/dev/null
   done
   c=$(( c + 1 ))
   clr
