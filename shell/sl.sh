@@ -1,4 +1,8 @@
 #!/bin/bash
+#
+# SL
+# @see http://www.tkl.iis.u-tokyo.ac.jp/~toyoda/
+#
 
 SL_LENGTH=83
 # SL_STEAM {{{
