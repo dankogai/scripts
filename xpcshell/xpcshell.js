@@ -11,6 +11,19 @@ const XMLSerializer = Components.Constructor("@mozilla.org/xmlextras/xmlserializ
 const DOMParser = Components.Constructor("@mozilla.org/xmlextras/domparser;1", "nsIDOMParser");
 const SubScriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].getService(Ci.mozIJSSubScriptLoader);
 
+// ByteString to Unicode
+function UString(octets, charset){
+  let c = Cc["@mozilla.org/intl/scriptableunicodeconverter"].createInstance(Ci.nsIScriptableUnicodeConverter);
+  c.charset = charset || "UTF-8"; 
+  return c.ConvertToUnicode(octets);
+}
+// Unicode to ByteString
+function BString(str, charset){
+  let c = Cc["@mozilla.org/intl/scriptableunicodeconverter"].createInstance(Ci.nsIScriptableUnicodeConverter);
+  c.charset = charset || "UTF-8"; 
+  return c.ConvertFromUnicode(str);
+}
+
 // --------------------------------------------------------
 // io
 // -----------------------------------------------------{{{
@@ -123,7 +136,6 @@ let io = (function(){
       try {
         ocstream.writeString(buf);
       } catch (e) {
-        liberator.dump(e);
         if (e.result == Cr.NS_ERROR_LOSS_OF_SIGNIFICANT_DATA) {
           ocstream = getStream("?".charCodeAt(0));
           ocstream.writeString(buf);
@@ -150,7 +162,15 @@ let io = (function(){
         yield entries.getNext().QueryInterface(Ci.nsIFile);
     },
     loadScript: function io_loadScript(path, context){
-      let uri = net.newFileURI(path);
+      let file = this.File(path);
+      if (!file.exists())
+        throw new Error(file.path + " is not found");
+      else if (file.isDirectory())
+        throw new Error(file.path + " is directory");
+      else if (!file.isReadable())
+        throw new Error(file.path + " is not readable");
+
+      let uri = net.newFileURI(file);
       SubScriptLoader.loadSubScript(uri.spec, context);
     }
   };
@@ -204,18 +224,6 @@ let DOM = (function(){
   };
   return self;
 })();
-// }}}
-// --------------------------------------------------------
-// util
-// -----------------------------------------------------{{{
-let util = {
-  toUTF8Octets: function util_toUTF8Octets(string){
-    return unescape(encodeURIComponent(string));
-  },
-  fromUTF8Octets: function util_fromUTF8Octets(octets){
-    return decodeURIComponent(escape(octets));
-  }
-};
 // }}}
 
 // vim: sw=2 ts=2 et fdm=marker:

@@ -1,5 +1,5 @@
 /* 
- *  arguments: url [url ...]
+ *  arguments: file.to.script url [url ...]
  */
 
 /**
@@ -58,7 +58,7 @@ function createWindow(url, doc){
     if (res.status != 200){
       throw new Error(res.status + ": " + res.statusText);
     }
-    let doc = createDoc(util.toUTF8Octets(res.responseText));
+    let doc = createDoc(res.responseText);
     let window = createWindow(url, doc);
     io.loadScript("jquery-1.3.2.js", window);
     io.loadScript(userScript, window);
