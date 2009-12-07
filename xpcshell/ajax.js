@@ -52,8 +52,6 @@ function createWindow(url, doc){
   var userScript = args.shift();
   for (let i=0, len=args.length; i<len; i++){
     let url = args[i];
-    print("==========================================");
-    print("URL: " + url);
     let res = net.httpGet(url);
     if (res.status != 200){
       throw new Error(res.status + ": " + res.statusText);
