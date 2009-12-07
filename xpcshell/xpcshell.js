@@ -10,6 +10,7 @@ const XMLHttpRequest = Components.Constructor("@mozilla.org/xmlextras/xmlhttpreq
 const XMLSerializer = Components.Constructor("@mozilla.org/xmlextras/xmlserializer;1", "nsIDOMSerializer");
 const DOMParser = Components.Constructor("@mozilla.org/xmlextras/domparser;1", "nsIDOMParser");
 const SubScriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].getService(Ci.mozIJSSubScriptLoader);
+const Process = Components.Constructor("@mozilla.org/process/util;1","nsIProcess", "init");
 
 // ByteString to Unicode
 function UString(octets, charset){
