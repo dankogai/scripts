@@ -42,6 +42,26 @@ function createWindow(url, doc){
       protocol: uri.scheme,
       search: ""
     },
+    setTimeout: function(func, delay){
+      let args = [func, delay, this];
+      for (let i=2, len=arguments.length; i<len; i++){
+        args.push(arguments[i]);
+      }
+      return TimeManager.setTimeout.apply(this, args);
+    },
+    setInterval: function(func, delay){
+      let args = [func, delay, this];
+      for (let i=2, len=arguments.length; i<len; i++){
+        args.push(arguments[i]);
+      }
+      return TimeManager.setInterval.apply(this, args);
+    },
+    clearTimeout: function(id){
+      TimeManager.clearTimeout(id);
+    },
+    clearInterval: function(id){
+      TimeManager.clearInterval(id);
+    }
   };
   window.window = window;
   return window;
@@ -52,14 +72,18 @@ function createWindow(url, doc){
   var userScript = args.shift();
   for (let i=0, len=args.length; i<len; i++){
     let url = args[i];
-    let res = net.httpGet(url);
-    if (res.status != 200){
-      throw new Error(res.status + ": " + res.statusText);
+    net.httpGet(url, {
+      callback: function(xhr){
+        let doc = createDoc(xhr.responseText);
+        let window = createWindow(url, doc);
+        io.loadScript("jquery-1.3.2.js", window);
+        io.loadScript(userScript, window);
+      }
+    });
+    let thread = Cc["@mozilla.org/thread-manager;1"].getService().mainThread;
+    while(!TimeManager.isAllFinished){
+      thread.processNextEvent(true);
     }
-    let doc = createDoc(res.responseText);
-    let window = createWindow(url, doc);
-    io.loadScript("jquery-1.3.2.js", window);
-    io.loadScript(userScript, window);
   }
 })(Array.slice(arguments));
 
