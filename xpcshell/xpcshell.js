@@ -6,11 +6,11 @@ const Cu = Components.utils;
 const ENV = Cc["@mozilla.org/process/environment;1"].getService(Ci.nsIEnvironment);
 const FILE = Components.Constructor("@mozilla.org/file/local;1","nsILocalFile", "initWithPath");
 const IOS = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
-const XMLHttpRequest = Components.Constructor("@mozilla.org/xmlextras/xmlhttprequest;1","nsIJSXMLHttpRequest");
 const XMLSerializer = Components.Constructor("@mozilla.org/xmlextras/xmlserializer;1", "nsIDOMSerializer");
 const DOMParser = Components.Constructor("@mozilla.org/xmlextras/domparser;1", "nsIDOMParser");
 const SubScriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].getService(Ci.mozIJSSubScriptLoader);
 const Process = Components.Constructor("@mozilla.org/process/util;1","nsIProcess", "init");
+const nsITimer = Components.Constructor("@mozilla.org/timer;1", "nsITimer", "init");
 
 // ByteString to Unicode
 function UString(octets, charset){
@@ -181,12 +181,66 @@ let io = (function(){
 // --------------------------------------------------------
 // net
 // -----------------------------------------------------{{{
+function XMLHttpRequest(){
+  this.xhr = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].createInstance(Ci.nsIJSXMLHttpRequest);
+  for (var key in this.xhr){
+    let k = key;
+    switch(k){
+      case "open":
+      case "send":
+      case "sendAsBinay":
+        break;
+      case "onreadystatechange":
+      case "onuploadprogress":
+      case "onabort":
+      case "onerror":
+      case "onload":
+      case "onloadstart":
+        this.__defineSetter__(k, function(func) this.xhr[k] = func);
+      default:
+        this.__defineGetter__(k, function() this.xhr[k]);
+    }
+  }
+}
+XMLHttpRequest.prototype = {
+  open: function open(method, url, async, user, password){
+    this.isAsync = !!async;
+    return this.xhr.open(method, url, async, user, password);
+  },
+  isAsync: false,
+  get finished(){
+    if (!this.isAsync) {
+      return true;
+    } else if (this.readyState == 4){
+      TimeManager.stack.remove(this.id);
+      return true;
+    }
+    return false;
+  },
+  send: function send(data){
+    if (this.isAsync)
+      TimeManager.stack.push(this);
+    this.xhr.send(data);
+  },
+  sendAsBinay: function sendAsBinay(data){
+    if (this.isAsync)
+      TimeManager.stack.push(this);
+    this.xhr.sendAsBinary(data);
+  }
+}
 let net = (function(){
   let self = {
     httpGet: function(url, option){
       if (!option) option = {};
       let xhr = new XMLHttpRequest();
-      xhr.open("GET", url, false, option.user, option.password);
+      if (option.callback){
+        xhr.onreadystatechange = function(){
+          if (xhr.readyState == 4){
+            option.callback(xhr);
+          }
+        }
+      }
+      xhr.open("GET", url, !!option.callback, option.user, option.password);
       if (option.header){
         for (let k in option.header){
           xhr.setRequestHeader(k, option.header[k]);
@@ -226,5 +280,113 @@ let DOM = (function(){
   return self;
 })();
 // }}}
+// --------------------------------------------------------
+// Timer
+// @see http://piro.sakura.ne.jp/latest/blosxom/mozilla/xul/2010-02-06_xpcshell-delayed.htm
+// -----------------------------------------------------{{{
+let TimeManager = (function(){
+  const TIMER_TYPES = {
+    timeout: Ci.nsITimer.TYPE_ONE_SHOT,
+    interval: Ci.nsITimer.TYPE_REPEATING_PRECISE
+  };
+  function Timer(aType, aCallback, aDelay, aContext, aArgs){
+    if (!(aType in TIMER_TYPES))
+      throw new TypeError("aType is only `timeout' or `interval'");
 
+    this.finished = false;
+    this.type = TIMER_TYPES[aType];
+    this.callback = aCallback;
+    this.context = aContext;
+    this.args = aArgs;
+    this.timer = new nsITimer(this, aDelay, TIMER_TYPES[aType]);
+  }
+  Timer.prototype = {
+    cancel: function (){
+      try {
+        this.timer.cancel();
+      } catch(e) {
+      }
+      this.finished = true;
+      delete this.timer;
+      delete this.callback;
+      stack.remove(this.id);
+    },
+    observe: function(aSubject, aTopic, aData){
+      if (aTopic != "timer-callback") return;
+      if (typeof this.callback == "function")
+        this.callback.apply(this.context, this.args);
+      else
+        eval(this.calback);
+
+      if (this.type == TIMER_TYPES.timeout){
+        this.finished = true;
+        this.cancel();
+      }
+    }
+  }
+  let stack = {
+    values: {},
+    counter: 0,
+    push: function push(aTimer){
+      this.values[++this.counter] = aTimer;
+      return aTimer.id = this.counter;
+    },
+    remove: function remove(id){
+      if (id in this.values){
+        return delete this.values[id];
+      }
+      return false;
+    },
+    get: function get(id){
+      if (id in this.values)
+        return this.values[id];
+
+      return null;
+    },
+    __iterator__: function __iterator__(){
+      for each(let timer in this.values){
+        yield timer;
+      }
+    }
+  }
+  let manager = {
+    get isAllFinished(){
+      let counter = 0;
+      for (let timer in stack){
+        if (!timer.finished)
+          counter++;
+      }
+      return (counter == 0);
+    },
+    get stack() stack,
+    setTimeout: function TimerSetTimeout(callback, delay, context){
+      let args = [];
+      for (let i=3, len=arguments.length; i<len; i++){
+        args.push(arguments[i]);
+      }
+      return stack.push(new Timer("timeout", callback, delay, context||this, args));
+    },
+    clearTimeout: function TimerClearTimeout(id){
+      let timer = stack.get(id);
+      if (timer && timer.type == TIMER_TYPES.timeout){
+        timer.cancel();
+      }
+    },
+    setInterval: function TimerSetInterval(callback, delay, context){
+      let args = [];
+      for (let i=3, len=arguments.length; i<len; i++){
+        args.push(arguments[i]);
+      }
+      return stack.push(new Timer("interval", callback, delay, context||this, args));
+    },
+    clearInterval: function TimerClearInterval(id){
+      let timer = stack.get(id);
+      if (timer && timer.type == TIMER_TYPES.interval){
+        timer.cancel();
+      }
+    },
+  }
+  return manager;
+})();
+// }}}
 // vim: sw=2 ts=2 et fdm=marker:
