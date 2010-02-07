@@ -10,7 +10,8 @@ const XMLSerializer = Components.Constructor("@mozilla.org/xmlextras/xmlserializ
 const DOMParser = Components.Constructor("@mozilla.org/xmlextras/domparser;1", "nsIDOMParser");
 const SubScriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].getService(Ci.mozIJSSubScriptLoader);
 const Process = Components.Constructor("@mozilla.org/process/util;1","nsIProcess", "init");
-const nsITimer = Components.Constructor("@mozilla.org/timer;1", "nsITimer", "init");
+
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 // ByteString to Unicode
 function UString(octets, charset){
@@ -190,13 +191,14 @@ function XMLHttpRequest(){
       case "send":
       case "sendAsBinay":
         break;
+      case "mozBackgroundRequest":
       case "onreadystatechange":
       case "onuploadprogress":
       case "onabort":
       case "onerror":
       case "onload":
       case "onloadstart":
-        this.__defineSetter__(k, function(func) this.xhr[k] = func);
+        this.__defineSetter__(k, function(obj) this.xhr[k] = obj);
       default:
         this.__defineGetter__(k, function() this.xhr[k]);
     }
@@ -209,22 +211,18 @@ XMLHttpRequest.prototype = {
   },
   isAsync: false,
   get finished(){
-    if (!this.isAsync) {
+    if (!this.isAsync || this.readyState == 4)
       return true;
-    } else if (this.readyState == 4){
-      TimeManager.stack.remove(this.id);
-      return true;
-    }
     return false;
   },
   send: function send(data){
     if (this.isAsync)
-      TimeManager.stack.push(this);
+      ThreadManager.pool.set(this);
     this.xhr.send(data);
   },
   sendAsBinay: function sendAsBinay(data){
     if (this.isAsync)
-      TimeManager.stack.push(this);
+      ThreadManager.pool.set(this);
     this.xhr.sendAsBinary(data);
   }
 }
@@ -233,6 +231,7 @@ let net = (function(){
     httpGet: function(url, option){
       if (!option) option = {};
       let xhr = new XMLHttpRequest();
+      xhr.mozBackgroundRequest = true;
       if (option.callback){
         xhr.onreadystatechange = function(){
           if (xhr.readyState == 4){
@@ -281,24 +280,43 @@ let DOM = (function(){
 })();
 // }}}
 // --------------------------------------------------------
-// Timer
-// @see http://piro.sakura.ne.jp/latest/blosxom/mozilla/xul/2010-02-06_xpcshell-delayed.htm
+// ThreadManager
 // -----------------------------------------------------{{{
-let TimeManager = (function(){
-  const TIMER_TYPES = {
-    timeout: Ci.nsITimer.TYPE_ONE_SHOT,
-    interval: Ci.nsITimer.TYPE_REPEATING_PRECISE
-  };
+let ThreadManager = (function(){
+  let tm = Cc["@mozilla.org/thread-manager;1"].getService(Ci.nsIThreadManager);
+  /*
+   * nsIRunnable {{{
+   */
+  function Runnable(self, func, args){
+    this.finished = false;
+    this.run = function RunnableRun(){
+      try {
+        func.apply(self, args);
+      } finally {
+        this.finished = true;
+      }
+    }
+  }
+  Runnable.prototype = {
+    QueryInterfalce: XPCOMUtils.generateQI([Ci.nsIRunnable]),
+  } // }}}
+  const nsITimer               = Components.Constructor("@mozilla.org/timer;1", "nsITimer", "init"),
+        TYPE_ONE_SHOT          = Ci.nsITimer.TYPE_ONE_SHOT,
+        TYPE_REPEATING_PRECISE = Ci.nsITimer.TYPE_REPEATING_PRECISE;
+  /*
+   * Timer {{{
+   * @see http://piro.sakura.ne.jp/latest/blosxom/mozilla/xul/2010-02-06_xpcshell-delayed.htm
+   */
   function Timer(aType, aCallback, aDelay, aContext, aArgs){
-    if (!(aType in TIMER_TYPES))
-      throw new TypeError("aType is only `timeout' or `interval'");
+    if (aType != TYPE_ONE_SHOT && aType != TYPE_REPEATING_PRECISE)
+      throw new TypeError("aType is only `TYPE_ONE_SHOT' or `TYPE_REPEATING_PRECISE'");
 
     this.finished = false;
-    this.type = TIMER_TYPES[aType];
+    this.type = aType;
     this.callback = aCallback;
     this.context = aContext;
     this.args = aArgs;
-    this.timer = new nsITimer(this, aDelay, TIMER_TYPES[aType]);
+    this.timer = new nsITimer(this, aDelay, this.type);
   }
   Timer.prototype = {
     cancel: function (){
@@ -309,7 +327,6 @@ let TimeManager = (function(){
       this.finished = true;
       delete this.timer;
       delete this.callback;
-      stack.remove(this.id);
     },
     observe: function(aSubject, aTopic, aData){
       if (aTopic != "timer-callback") return;
@@ -318,75 +335,99 @@ let TimeManager = (function(){
       else
         eval(this.calback);
 
-      if (this.type == TIMER_TYPES.timeout){
-        this.finished = true;
+      if (this.type == TYPE_ONE_SHOT){
         this.cancel();
       }
     }
-  }
-  let stack = {
-    values: {},
-    counter: 0,
-    push: function push(aTimer){
-      this.values[++this.counter] = aTimer;
-      return aTimer.id = this.counter;
-    },
-    remove: function remove(id){
-      if (id in this.values){
-        return delete this.values[id];
+  } // }}}
+  /*
+   * ThreadManager public properties {{{
+   */
+  let self = {
+    pool: (function(){
+      let p = {},
+          cnt = 0;
+      return {
+        set: function PoolSet(obj){
+          p[++cnt] = obj;
+          return cnt;
+        },
+        get: function PoolGet(id){
+          if (id in p)
+            return p[id];
+          return null;
+        },
+        isFinished: function PoolIsFinised(id){
+          if (id in p){
+            if (p[id].finished){
+              delete p[id];
+              return true;
+            }
+            return false;
+          }
+          return true;
+        },
+        remove: function PoolRemove(id){
+          if (id in p)
+            return delete p[id];
+          return false;
+        },
+        __iterator__: function PoolIterator(){
+          for (let id in p)
+            yield [id, p[id]];
+        }
       }
-      return false;
+    })(),
+    get mainThread() tm.mainThread,
+    get newThread() tm.newThread(0),
+    callAsync: function ThreadManagerCallAsync(thread, context, func){
+      if (!thread) thread = this.newThread;
+      let runner = new Runnable(context, func, Array.slice(arguments, 3));
+      this.pool.set(runner);
+      thread.dispatch(runner, thread.DISPATCH_NORMAL);
     },
-    get: function get(id){
-      if (id in this.values)
-        return this.values[id];
-
-      return null;
-    },
-    __iterator__: function __iterator__(){
-      for each(let timer in this.values){
-        yield timer;
+    wait: function ThreadManagerWait(id){
+      function isAllFinished(){
+        let cnt = 0;
+        for (let [id, obj] in ThreadManager.pool){
+          if (obj.finished)
+            ThreadManager.pool.remove(id);
+          else
+            cnt++;
+        }
+        return (cnt == 0);
       }
-    }
-  }
-  let manager = {
-    get isAllFinished(){
-      let counter = 0;
-      for (let timer in stack){
-        if (!timer.finished)
-          counter++;
+      if (id){
+        while(!this.pool.isFinished(id)){
+          this.mainThread.processNextEvent(true);
+        }
+      } else {
+        while(!isAllFinished()){
+          this.mainThread.processNextEvent(true);
+        }
       }
-      return (counter == 0);
     },
-    get stack() stack,
     setTimeout: function TimerSetTimeout(callback, delay, context){
-      let args = [];
-      for (let i=3, len=arguments.length; i<len; i++){
-        args.push(arguments[i]);
-      }
-      return stack.push(new Timer("timeout", callback, delay, context||this, args));
+      return this.pool.set(new Timer(TYPE_ONE_SHOT, callback, delay, context||this, Array.slice(arguments, 3)));
     },
     clearTimeout: function TimerClearTimeout(id){
-      let timer = stack.get(id);
-      if (timer && timer.type == TIMER_TYPES.timeout){
+      let timer = this.pool.get(id);
+      if (timer && timer.type == TYPE_ONE_SHOT){
         timer.cancel();
       }
     },
     setInterval: function TimerSetInterval(callback, delay, context){
-      let args = [];
-      for (let i=3, len=arguments.length; i<len; i++){
-        args.push(arguments[i]);
-      }
-      return stack.push(new Timer("interval", callback, delay, context||this, args));
+      return this.pool.set(new Timer(TYPE_REPEATING_PRECISE, callback, delay, context||this, Array.slice(arguments, 3)));
     },
     clearInterval: function TimerClearInterval(id){
-      let timer = stack.get(id);
-      if (timer && timer.type == TIMER_TYPES.interval){
+      let timer = this.pool.get(id);
+      if (timer && timer.type == TYPE_REPEATING_PRECISE){
         timer.cancel();
       }
     },
-  }
-  return manager;
+  };
+  return self;
+  // }}}
 })();
 // }}}
 // vim: sw=2 ts=2 et fdm=marker:
