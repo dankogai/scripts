@@ -43,24 +43,18 @@ function createWindow(url, doc){
       search: ""
     },
     setTimeout: function(func, delay){
-      let args = [func, delay, this];
-      for (let i=2, len=arguments.length; i<len; i++){
-        args.push(arguments[i]);
-      }
-      return TimeManager.setTimeout.apply(this, args);
+      let args = [func, delay, this].concat(Array.slice(arguments, 2));
+      return ThreadManager.setTimeout.apply(this, args);
     },
     setInterval: function(func, delay){
-      let args = [func, delay, this];
-      for (let i=2, len=arguments.length; i<len; i++){
-        args.push(arguments[i]);
-      }
-      return TimeManager.setInterval.apply(this, args);
+      let args = [func, delay, this].concat(Array.slice(arguments, 2));
+      return ThreadManager.setInterval.apply(this, args);
     },
     clearTimeout: function(id){
-      TimeManager.clearTimeout(id);
+      ThreadManager.clearTimeout(id);
     },
     clearInterval: function(id){
-      TimeManager.clearInterval(id);
+      ThreadManager.clearInterval(id);
     }
   };
   window.window = window;
@@ -80,10 +74,7 @@ function createWindow(url, doc){
         io.loadScript(userScript, window);
       }
     });
-    let thread = Cc["@mozilla.org/thread-manager;1"].getService().mainThread;
-    while(!TimeManager.isAllFinished){
-      thread.processNextEvent(true);
-    }
+    ThreadManager.wait();
   }
 })(Array.slice(arguments));
 
