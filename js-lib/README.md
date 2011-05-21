@@ -47,6 +47,7 @@ Additional method and function into __Proxy__ (ECMAScript Harmony)
 
 ###requires
 
+ * [Proxies](http://wiki.ecmascript.org/doku.php?id=harmony:proxies "harmony:proxies [ES Wiki]")
  * [object.js]
 
 [namespace.js]
