@@ -82,12 +82,12 @@ Create an object can only access a property named `_` at first from the internal
    * [object.js]
 
 
-[object.js]: object.js
-[weakmap.js]: weakmap.js
-[class.js]: class.js
-[proxy.js]: proxy.js
-[namespace.js]: namespace.js
-[privateProperty.js]: privateProperty.js
+[object.js]: https://github.com/teramako/scripts/blob/master/js-lib/object.js
+[weakmap.js]: https://github.com/teramako/scripts/blob/master/js-lib/weakmap.js
+[class.js]: https://github.com/teramako/scripts/blob/master/js-lib/class.js
+[proxy.js]: https://github.com/teramako/scripts/blob/master/js-lib/proxy.js
+[namespace.js]: https://github.com/teramako/scripts/blob/master/js-lib/namespace.js
+[privateProperty.js]: https://github.com/teramako/scripts/blob/master/js-lib/privateProperty.js
 [ES5]: http://www.ecma-international.org/publications/standards/Ecma-262.htm "ECMAScript Language Specification"
 [E4X]: http://www.ecma-international.org/publications/standards/Ecma-357.htm "ECMAScript For XML (E4X) Specification"
 
