@@ -56,11 +56,6 @@ function Class (name, base, proto) {
   Class.wm.set(constructor, name);
   constructor.prototype = proto;
   constructor.__proto__ = Class;
-  /*
-  var bound = constructor.bind(null);
-  bound.prototype = proto;
-  bound.__proto__ = Class;
-  */
   return constructor;
 }
 Object.defineProperties(Class, {
@@ -157,23 +152,6 @@ Object.defineProperties(Class, {
       }
     },
   },
-  /**
-   * evaluate argument and logging the result
-   * @function
-   * @name Class.evalog
-   * @param {String} str
-   */
-  evalog: {
-    value: function (str) {
-      var res;
-      try {
-        res = eval(str);
-        console.log(str + " =>", res);
-      } catch (e) {
-        console.error(str + " => " + e.name, e.message, e);
-      }
-    }
-  },
 });
 Class.prototype = Object.create({}, {
   /**
@@ -201,42 +179,6 @@ Class.prototype = Object.create({}, {
       var classes = Class.getClasses(this);
       return "[instance " + classes.shift() + " inherits " + classes.toString() + "]";
     },
-  },
-  /**
-   * log messages
-   * @methodof Class.prototype
-   * @param {Object} msg
-   */
-  log: {
-    value: function console_log () {
-      var args = Array.prototype.slice.call(arguments);
-      console.log.apply(console, ["@" + Class.wm.get(this.constructor)].concat(args));
-    },
-  },
-  /**
-   * debug messages
-   * @methodof Class.prototype
-   * @param {Object} msg
-   */
-  debug: {
-    value: function debug () {
-      var args = Array.prototype.slice.call(arguments),
-          caller = arguments.callee.caller,
-          callerName = caller && caller.name || "",
-          className = Class.wm.get(this.constructor);
-
-      if (caller) {
-        console.log(
-          "@" + className + " => ",
-          callerName + "(",
-          Array.prototype.slice.call(caller.arguments),
-          ")"
-        );
-        console.log.apply(console, args);
-      } else {
-        console.log.apply(console, ["@" + className].concat(args));
-      }
-    }
   },
 });
 Class.wm.set(Class, "Class");
