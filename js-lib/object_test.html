@@ -1,0 +1,33 @@
+<html>
+<head>
+  <title>Object Test</title>
+  <script type="application/javascript" src="code.js"></script>
+  <script type="application/javascript" src="object.js"></script>
+</head>
+<body>
+<h1>Object Test</h1>
+
+<script type="application/javascript">
+function Foo(name) {
+  this.name = name;
+}
+Foo.prototype = {
+  getName: function () {
+    return this.name;
+  },
+};
+
+var f = new Foo("hoge");
+
+console.info("===", "Object.getOwnPropertyNames", "====");
+console.log(Object.getOwnPropertyNames(f));
+
+console.info("===", "Object.getPropertyNames", "====");
+console.log(Object.getPropertyNames(f));
+
+console.info("===", "Object.getProperties", "====");
+console.log("f.own:", Object.getOwnProperties(f));
+console.log("f.prototype:", Object.getOwnProperties(Object.getPrototypeOf(f)));
+</script>
+</body>
+</html>

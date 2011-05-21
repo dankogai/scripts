@@ -1,0 +1,31 @@
+<html>
+<head>
+  <title>Namespace Test</title>
+  <script type="application/javascript" src="code.js"></script>
+  <script type="application/javascript" src="object.js"></script>
+  <script type="application/javascript" src="proxy.js"></script>
+  <script type="application/javascript" src="namespace.js"></script>
+</head>
+<body>
+<h1>Namespace Test</h1>
+
+<script type="application/javascript">
+var obj = {
+  foo: "FOO",
+  bar: "BAR"
+};
+var n = NS("http://example.com/", obj, "example");
+console.info("create NS: n");
+console.log("n.foo = 'exeample foo'; //", n.foo = "example foo");
+console.log("n.bar = 'exeample bar'; //", n.bar = "example bar");
+console.log("n.foo; //", n.foo);
+console.log("NS.example; //", NS.example);
+for (var key in NS.example) {
+  console.log("NS.example[" + key.quote() + "]", NS.example[key])
+}
+console.log("obj; //", obj);
+</script>
+</body>
+</html>
+
+

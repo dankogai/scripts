@@ -1,0 +1,41 @@
+<html>
+<head>
+  <title>PrivateProperty Test</title>
+  <script type="application/javascript" src="code.js"></script>
+  <script type="application/javascript" src="object.js"></script>
+  <script type="application/javascript" src="proxy.js"></script>
+  <script type="application/javascript" src="class.js"></script>
+  <script type="application/javascript" src="privateProperty.js"></script>
+</head>
+<body>
+<h1>PrivateProperty Test</h1>
+
+<script type="application/javascript">
+const Private = Class("Private", {
+  init: function () {
+    return PrivateClass(this);
+  }
+});
+const Foo = Class("Foo", Private, {
+  init: function (name) {
+    var self = arguments.callee.super.call(this);
+    self._name = name;
+    return self;
+  },
+  getName: function () {
+    return this._name;
+  },
+  setName: function (name) {
+    return this._name = name;
+  },
+});
+
+console.info("create ", "var f1 = Foo('Foo1')");
+var f1 = Foo("Foo1");
+console.log("Foo1: f1 instance Foo", f1 instanceof Foo);
+console.log("Foo1: f1.getName()", f1.getName());
+console.log("Foo1: f1._name", f1._name);
+</script>
+</body>
+</html>
+
