@@ -9,20 +9,24 @@
 <h1>Class Test</h1>
 
 <script type="application/javascript">
+console.info("create Foo class");
 const Foo = Class("Foo", {
   init: function (name) {
     this.name = name;
   },
   getName: function () {
-    this.debug("called getName");
     return this.name;
   },
 });
+console.log("Foo.toString(); //", Foo.toString());
 
+console.info("create an instance of Foo");
 var f = new Foo("hoge");
 
-f.log("f.name", f.name);
-f.log("f.getName()", f.getName());
+console.info("==== instance Foo =====");
+console.log("f.name; //", f.name);
+console.log("f.getName(); //", f.getName());
+console.log("f.toString(); //", f.toString());
 </script>
 </body>
 </html>
