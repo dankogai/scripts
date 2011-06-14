@@ -1,0 +1,35 @@
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Unicode Test</title>
+  <script type="application/javascript" src="code.js"></script>
+  <script type="application/javascript" src="weakmap.js"></script>
+  <script type="application/javascript" src="class.js"></script>
+  <script type="application/javascript" src="unicode.js"></script>
+</head>
+<body>
+<h1>Uniode Test</h1>
+
+<script type="application/javascript">
+var str;
+console.info("================= 3 bytes ==========================");
+str = Unicode("あいうえお");
+console.log(str.value);
+console.log(str.toString());
+console.info("================= 2 bytes ==========================");
+str = Unicode("€АБВГ");
+console.log(str.value);
+console.log(str.toString());
+console.log(str.toCharacterReference());
+console.log(str.UTF8.map(function(n){ return  "0x"+n.toString(16); }));
+console.info("================= 4 bytes ==========================");
+str = Unicode("𠀋𡈽𡌛𡑮𡢽𠮟");
+console.log(str.value);
+console.log(str.toString());
+console.log(str.toCharacterReference());
+console.log(str.UTF8.map(function(n){ return  "0x"+n.toString(16); }));
+console.log(Unicode.fromCP(str.CP.reverse()));
+</script>
+</body>
+</html>
+
