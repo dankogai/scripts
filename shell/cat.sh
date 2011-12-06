@@ -1,7 +1,35 @@
 #!/bin/bash
 #
-# CAT
+# yet another cat
 #
+# Restrict cat command which means 'concat'
+# 'concat' を表す cat コマンドを厳密化！！
+#
+# show AA of a cat if non-stdin or not specified 2 or more files
+# 標準入力が無い、または、2つ以上のファイルが指定されない場合、猫のAAを流します
+#
+
+concatable () {
+  if [ ! -t 0 ];then
+    return 0
+  fi
+  local FILE_COUNT=0
+  for arg in "$@"; do
+    if [[ "$arg" != -* ]] && [ -f "$arg" ]; then
+      (( FILE_COUNT++ ))
+    fi
+  done
+  if [ $FILE_COUNT -gt 1 ]; then
+    return 0
+  fi
+  return 1
+}
+
+if concatable "$@" ; then
+  /bin/cat "$@";
+  exit $?
+fi
+
 
 CAT_LENGTH=85
 CAT_HEIGHT=13
