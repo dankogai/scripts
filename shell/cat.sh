@@ -10,6 +10,9 @@
 #
 # @see http://kenji1234.blog75.fc2.com/blog-entry-19.html
 #
+#
+# @dankogai /proc/uptime is not portable so replaced with perl's Time::HiRes
+#
 
 concatable () {
   local MIN_FILE_COUNT=2
@@ -62,23 +65,8 @@ CAT_2[7]="(⌒)              (⌒) ::::::::: /"
 CAT_2[8]=" ;,  :'              ; : : ::::::::｀:､"
 CAT_2[9]="  ; ,:'               ';,.  : : ::::::｀:､"
 
-START=0
-set_START () {
-  END=0
-  ELAPS=0
-  local dummy
-  read START dummy < /proc/uptime
-}
-set_ELAPS () {
-  local dummy
-  read END dummy < /proc/uptime
-  ELAPS=$(( ${END/./}0-${START/./}0 ))
-}
 mili_sleep () {
-    set_START
-    while (( ELAPS <= $1 )); do
-      set_ELAPS
-    done
+  perl -MTime::HiRes=sleep -e sleep -e 0.05
 }
 
 clr() {
